@@ -1,0 +1,47 @@
+/*
+Ocitavanje senzora zvuka.
+      - Tiva's GND pin is connected to Sensor Kit's GND pin
+      - Tiva's +3.3V pin is connected to Sensor Kit's 5V pin
+      - Tiva's PE3 pin is connected to Sensor Kit's A2 pin (Analog In 2)
+ */
+
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+
+
+int main(void)
+{
+
+    uint32_t sensor_value = 0;
+
+   helper_library_init();
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+
+    ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
+
+    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+
+    ADCSequenceEnable(ADC0_BASE, 0);
+
+    while(1)
+    {
+        ADCProcessorTrigger(ADC0_BASE, 0);
+
+        while(!ADCIntStatus(ADC0_BASE, 0, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC0_BASE, 0, &sensor_value);
+
+        print("Sensor value: %u\n", sensor_value);
+
+        delay(500);
+    }
+}
