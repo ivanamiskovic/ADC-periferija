@@ -1,5 +1,8 @@
 /*
 Ocitavanje senzora osvetljenja.
+      - Tiva's GND pin is connected to Sensor Kit's GND pin
+      - Tiva's +3.3V pin is connected to Sensor Kit's 5V pin
+      - Tiva's PE3 pin is connected to Sensor Kit's A3 pin (Analog In 3)
  */
 
 
