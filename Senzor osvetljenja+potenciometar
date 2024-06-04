@@ -1,0 +1,58 @@
+/*
+Napisati program koji ocitava signal senzora osvetljenja i signal polozaja potenciometra sa Sensor Kit-a.
+Program ocitane vrednosti salje PC racunaru putem poruke
+         - Tiva's GND pin is connected to Sensor Kit's GND pin
+ *      - Tiva's +3.3V pin is connected to Sensor Kit's 5V pin
+ *      - Tiva's PE2 pin is connected to Sensor Kit's A3 pin (Analog In 3)
+ *      - Tiva's PE1 pin is connected to Sensor Kit's A0 pin (Analog In 0)
+ */
+
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+
+
+int main(void)
+{
+
+    uint32_t sensorLight_value = 0;
+    uint32_t sensorPotentiometer_value = 0;
+   helper_library_init();
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC1);
+    ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
+    ADCSequenceConfigure(ADC1_BASE, 0, ADC_TRIGGER_PROCESSOR, 0);
+
+    ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH1);
+    ADCSequenceStepConfigure(ADC1_BASE, 0, 0, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH2);
+
+    ADCSequenceEnable(ADC0_BASE, 0);
+    ADCSequenceEnable(ADC1_BASE, 0);
+    while(1)
+    {
+        ADCProcessorTrigger(ADC0_BASE, 0);
+        ADCProcessorTrigger(ADC1_BASE, 0);
+        while(!ADCIntStatus(ADC0_BASE, 0, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC0_BASE, 0, &sensorLight_value);
+        while(!ADCIntStatus(ADC1_BASE, 0, false))
+                {
+                    ;
+                }
+
+                ADCSequenceDataGet(ADC1_BASE, 0, &sensorPotentiometer_value);
+
+                print("Light value: %u; Potentiometer value: %u\n", sensorLight_value, sensorPotentiometer_value);
+
+
+        delay(1000);
+    }
+}
