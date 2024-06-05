@@ -13,7 +13,6 @@ U slucaju da je polozaj potenciometra izmedju 0% i 100%, perioda slanja poruka s
 
 period (u milisekundama)  =  500  +  45 * položaj_potenciometra_u_procentima
 Koristiti proizvoljan ADC modul i ulazni pin po zelji. Primeri poruka u PC terminalu:
-
 Osvetljenost: 29%
 Osvetljenost: 27%
 Osvetljenost: 28%
