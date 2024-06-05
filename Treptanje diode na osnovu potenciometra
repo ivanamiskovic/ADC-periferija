@@ -1,0 +1,96 @@
+/*
+Napisati program koji trepce svetlece diode na Tivi. Na pocetku programa, program trepce crvenu diodu, gde period treptanja
+zavisi od polozaja potenciometra:
+
+Sto je polozaj potenciometra manji, period treptanja diode je manji (dioda trepce brze).
+
+Sto je polozaj potenciometra veci, period treptanja diode je veci (dioda trepce sporije).
+
+U slucaju da je polozaj potenciometra 0%, period treptanja diode je 100 milisekundi.
+
+U slucaju da je polozaj potenciometra 100%, period treptanja diode je 1100 milisekundi.
+
+U slucaju da je polozaj potenciometra izmedju 0% i 100%, period treptanja diode racuna se po sledecoj formuli:
+
+period (u milisekundama)  =  100  +  10 * polozaj_potenciometra_u_procentima
+
+Koristiti proizvoljan ADC modul i ulazni pin po želji.
+ *      - Tiva's GND pin is connected to Sensor Kit's GND pin
+ *      - Tiva's +3.3V pin is connected to Sensor Kit's 5V pin
+ *      - Tiva's PE2 pin is connected to Sensor Kit's A0 pin (Analog In 0)
+ *      - Tiva's PA2 pin is connected to Sensor Kit's D6 pin
+ */
+
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+
+
+static const uint32_t sequence_number = 0;
+
+
+uint32_t get_blink_period()
+{
+    uint32_t potentiometer_raw_value;
+    uint32_t potentiometer_percentage;
+    uint32_t blink_period;
+
+    ADCProcessorTrigger(ADC0_BASE, sequence_number);
+
+    while(!ADCIntStatus(ADC0_BASE, 0, false))
+    {
+        ;
+    }
+
+    ADCSequenceDataGet(ADC0_BASE, sequence_number, &potentiometer_raw_value);
+
+    potentiometer_percentage = potentiometer_raw_value * 100 / 4095;
+
+    blink_period  =  100  +  (potentiometer_percentage * 10);
+
+    return blink_period;
+}
+
+
+int main(void)
+{
+    const uint32_t sequence_priority = 0;
+    const uint32_t step_number = 0;
+    uint32_t blink_period;
+
+    helper_library_init();
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
+    ADCSequenceConfigure(ADC0_BASE, sequence_number, ADC_TRIGGER_PROCESSOR, sequence_priority);
+
+    ADCSequenceStepConfigure(ADC0_BASE, sequence_number, step_number, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH1);
+
+    ADCSequenceEnable(ADC0_BASE, sequence_number);
+
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
+
+
+
+
+
+    while(1)
+    {
+        blink_period = get_blink_period();
+
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0xFF);
+        delay(blink_period);
+
+        blink_period = get_blink_period();
+
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0x00);
+        delay(blink_period);
+    }
+}
