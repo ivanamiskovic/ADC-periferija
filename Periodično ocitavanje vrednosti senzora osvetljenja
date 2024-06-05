@@ -1,0 +1,94 @@
+/*Napisati program koji periodicno ocitava vrednost senzora osvetljenja, i rezultate salje PC racunaru putem poruke.
+ *  Na pocetku programa, poruke se ne salju PC racunaru. Slanje poruka pocinje kada levi taster Tive bude pritisnut.
+ *  Posle pritiska levog tastera, slanje poruka se nastavlja cak i kada se taster pusti.
+
+U slucaju da se pritisne desni taster Tive, slanje poruka se prekida. U tom slucaju, poruke pocinju ponovo da se salju kada
+ levi taster bude ponovo pritisnut. Na taj nacin, levi taster se ponasa kao “START” taster, dok se desni taster ponasa kao
+  “STOP” taster.
+
+Koristiti proizvoljan ADC modul i ulazni pin po zelji. Poruke slati jednom u sekundi.
+*/
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+#include "driverlib/gpio.h"
+
+int main(void)
+{
+    bool left_button_pressed,right_button_pressed;
+        bool previous_right_button_state = false;
+
+    uint8_t pin_state2;
+    const uint32_t sequence_number = 0;
+    const uint32_t sequence_priority = 0;
+    const uint32_t step_number = 0;
+    uint32_t sensor_value = 0;
+    bool previous_left_button_state = false;
+    helper_library_init();
+
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    GPIOUnlockPin(GPIO_PORTF_BASE, GPIO_PIN_0);
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_0);
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_4);
+    GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_0, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+
+    ADCSequenceConfigure(ADC0_BASE, sequence_number, ADC_TRIGGER_PROCESSOR,
+                         sequence_priority);
+
+    ADCSequenceStepConfigure(ADC0_BASE, sequence_number, step_number,
+    ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+
+
+    ADCSequenceEnable(ADC0_BASE, sequence_number);
+
+    while (1)
+    {
+
+        ADCProcessorTrigger(ADC0_BASE, sequence_number);
+
+        while (!ADCIntStatus(ADC0_BASE, 0, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC0_BASE, sequence_number, &sensor_value);
+        bool current_left_button_state = !GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4);
+                if (current_left_button_state != previous_left_button_state)
+                {
+                    left_button_pressed = current_left_button_state;
+                    if (left_button_pressed)
+                    {
+                        print("Sensor value: %u\n", sensor_value);
+                    }
+                }
+                else if (left_button_pressed)
+                {
+                    print("Sensor value: %u\n", sensor_value);
+                }
+                pin_state2 = GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_0);
+        if (pin_state2 == 0x00)
+                {
+                    right_button_pressed = true;
+                }
+                else
+                {
+                    right_button_pressed = false;
+                }
+        if (right_button_pressed)
+               {
+                   left_button_pressed = false;
+               }
+
+
+        delay(200);
+    }
+
+}
