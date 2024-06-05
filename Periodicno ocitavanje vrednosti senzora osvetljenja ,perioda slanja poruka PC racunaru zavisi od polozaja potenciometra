@@ -1,0 +1,87 @@
+/*Napisati program koji periodicno ocitava vrednost senzora osvetljenja, i rezultate salje PC racunaru putem poruke.
+ * Perioda slanja poruka PC racunaru zavisi od polozaja potenciometra:
+
+Sto je polozaj potenciometra manji, perioda poruka je manja (poruke se salju “brze”, odnosno cesce).
+
+Sto je polozaj potenciometra veci, perioda poruka je veca (poruke se salju “sporije”, odnosno redje).
+
+U slucaju da je polozaj potenciometra 0%, poruke se salju svakih 500 milisekundi.
+
+U slucaju da je polozaj potenciometra 100%, poruke se salju svakih 5000 milisekundi (odnosno svakih 5 sekundi).
+
+U slucaju da je polozaj potenciometra izmedju 0% i 100%, perioda slanja poruka se racuna po sledecoj formuli:
+
+period (u milisekundama)  =  500  +  45 * položaj_potenciometra_u_procentima
+Koristiti proizvoljan ADC modul i ulazni pin po zelji. Primeri poruka u PC terminalu:
+
+Osvetljenost: 29%
+Osvetljenost: 27%
+Osvetljenost: 28%
+Osvetljenost: 28%
+Osvetljenost: 12%
+*/
+
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+
+int main(void)
+{
+    const uint32_t sequence_number = 0;
+    const uint32_t sequence_priority = 0;
+    const uint32_t step_number = 0;
+    uint32_t sensor_value = 0;
+    uint32_t potentiometer_value = 0;
+    uint32_t light_percentage = 0;
+    uint32_t message_period = 0;
+
+    helper_library_init();
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+
+    ADCSequenceConfigure(ADC0_BASE, sequence_number, ADC_TRIGGER_PROCESSOR, sequence_priority);
+    ADCSequenceStepConfigure(ADC0_BASE, sequence_number, step_number, ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+    ADCSequenceEnable(ADC0_BASE, sequence_number);
+
+    while(1)
+    {
+        ADCProcessorTrigger(ADC0_BASE, sequence_number);
+
+        while(!ADCIntStatus(ADC0_BASE, sequence_number, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC0_BASE, sequence_number, &sensor_value);
+
+        ADCProcessorTrigger(ADC0_BASE, sequence_number);
+        while(!ADCIntStatus(ADC0_BASE, sequence_number, false))
+        {
+            ;
+        }
+        ADCSequenceDataGet(ADC0_BASE, sequence_number, &potentiometer_value);
+
+        light_percentage = (potentiometer_value * 100) / 4095;
+
+        if (light_percentage == 0)
+        {
+            message_period = 500;  // 500 ms
+        }
+        else if (light_percentage == 100)
+        {
+            message_period = 5000; // 5000 ms
+        }
+        else
+        {
+            message_period = 500 + 45 * light_percentage; // Calculate period based on formula
+        }
+
+        print("Sensor value: %u\n", sensor_value);
+
+        delay(message_period);
+    }
+}
