@@ -1,0 +1,110 @@
+
+/*
+ *Napisati program koji ocitava polozaj potenciometra sa Sensor Kit-a, te u zavisnosti od polozaja pali svetlece diode na
+  Tivi. Diode se pale po sledecem pravilu:
+Ukoliko je polozaj potenciometra izmedju 0% i 30%, upaljena je crvena dioda na Tivi.
+Ukoliko je polozaj potenciometra izmedju 30% i 60%, upaljena je zelena dioda na Tivi.
+Ukoliko je polozaj potenciometra izmedju 60% i 90%, upaljena je plava dioda na Tivi.
+Ukoliko je polozaj potenciometra izmedju 90% i 100%, upaljene su sve tri diode na Tivi.
+ *      - Tiva's GND pin is connected to Sensor Kit's GND pin
+ *      - Tiva's +3.3V pin is connected to Sensor Kit's 5V pin
+ *      - Tiva's PE2 pin is connected to Sensor Kit's A3 pin (Analog In 3)
+ *      - Tiva's PE1 pin is connected to Sensor Kit's A0 pin (Analog In 0)
+ */
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+#include "driverlib/gpio.h"
+
+int main(void)
+{
+    const uint32_t sequence_number_light = 0;
+    const uint32_t sequence_number_potentiometer = 0;
+    const uint32_t sequence_priority_light = 0;
+    const uint32_t sequence_priority_potentiometer = 0;
+    const uint32_t step_number_light = 0;
+    const uint32_t step_number_potentiometer = 0;
+    uint32_t light_value;
+    uint32_t potentiometer_value;
+    uint32_t polozaj_potenciometra;
+    helper_library_init();
+
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC1);
+
+    ADCSequenceConfigure(ADC0_BASE, sequence_number_light,
+                         ADC_TRIGGER_PROCESSOR, sequence_priority_light);
+    ADCSequenceConfigure(ADC1_BASE, sequence_number_potentiometer,
+                         ADC_TRIGGER_PROCESSOR,
+                         sequence_priority_potentiometer);
+
+    ADCSequenceStepConfigure(ADC0_BASE, sequence_number_light,
+                             step_number_light,
+                             ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH1);
+    ADCSequenceStepConfigure(ADC1_BASE, sequence_number_potentiometer,
+                             step_number_potentiometer,
+                             ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH2);
+
+    ADCSequenceEnable(ADC0_BASE, sequence_number_light);
+    ADCSequenceEnable(ADC1_BASE, sequence_number_potentiometer);
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
+
+    while (1)
+    {
+        ADCProcessorTrigger(ADC0_BASE, sequence_number_light);
+        ADCProcessorTrigger(ADC1_BASE, sequence_number_potentiometer);
+
+        while (!ADCIntStatus(ADC0_BASE, 0, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC0_BASE, sequence_number_light, &light_value);
+
+        while (!ADCIntStatus(ADC1_BASE, 0, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC1_BASE, sequence_number_potentiometer,
+                           &potentiometer_value);
+        polozaj_potenciometra = potentiometer_value * 100 / 4095;
+
+        print("Polozaj potenciometra: %u%%\n", polozaj_potenciometra);
+        if (polozaj_potenciometra <= 30)
+                {
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2 | GPIO_PIN_3, 0x00);
+
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0xFF);
+                }
+                else if (polozaj_potenciometra > 30 && polozaj_potenciometra <= 60)
+                {
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2, 0x00);
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0xFF);
+
+                }
+                else if (polozaj_potenciometra > 60 && polozaj_potenciometra <= 90)
+                {
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3 | GPIO_PIN_1, 0x00);
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0xFF);
+
+                }
+                else if (polozaj_potenciometra > 90 && polozaj_potenciometra <= 100)
+                {
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3, 0xFF);
+
+                }
+        delay(1000);
+
+
+
+
+    }
+}
