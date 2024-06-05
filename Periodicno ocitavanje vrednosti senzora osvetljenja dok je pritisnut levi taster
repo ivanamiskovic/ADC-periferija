@@ -1,0 +1,77 @@
+/*Napisati program koji periodicno ocitava vrednost senzora osvetljenja, i rezultate salje PC racunaru putem poruke.
+ *  Poruke se salju PC racunaru jedino u slucaju da je levi taster na Tivi pritisnut. Dok taster nije pritisnut, poruke se ne calju.
+
+Koristiti proizvoljan ADC modul i ulazni pin po zelji. Poruke slati jednom u sekundi. Primeri poruka u PC terminalu:
+
+Osvetljenost: 29%
+Osvetljenost: 27%
+Osvetljenost: 28%
+Osvetljenost: 28%
+Osvetljenost: 12%
+*/
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "inc/hw_memmap.h"
+#include "helper_library/helper.h"
+#include "driverlib/gpio.h"
+
+int main(void)
+{
+    bool left_button_pressed;
+    uint8_t pin_state;
+    const uint32_t sequence_number = 0;
+    const uint32_t sequence_priority = 0;
+    const uint32_t step_number = 0;
+    uint32_t sensor_value = 0;
+
+    helper_library_init();
+
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_4);
+    GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+    ADCSequenceConfigure(ADC0_BASE, sequence_number, ADC_TRIGGER_PROCESSOR,
+                         sequence_priority);
+
+    ADCSequenceStepConfigure(ADC0_BASE, sequence_number, step_number,
+    ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+
+
+    ADCSequenceEnable(ADC0_BASE, sequence_number);
+
+    while (1)
+    {
+
+        ADCProcessorTrigger(ADC0_BASE, sequence_number);
+
+        while (!ADCIntStatus(ADC0_BASE, 0, false))
+        {
+            ;
+        }
+
+        ADCSequenceDataGet(ADC0_BASE, sequence_number, &sensor_value);
+        pin_state = GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4);
+
+        if (pin_state == 0x00)
+        {
+            left_button_pressed = true;
+        }
+        else
+        {
+            left_button_pressed = false;
+        }
+        if (left_button_pressed)
+        {
+            print("Sensor value: %u\n", sensor_value);
+
+        }
+        delay(200);
+    }
+
+}
